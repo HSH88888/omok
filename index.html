@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>반응형 모바일 오목</title>
+    <style>
+        :root {
+            --board-color: #e3a05b;
+            --line-color: #333;
+            /* 모바일: 화면 너비의 5%를 한 칸으로 설정. PC: 최대 30px */
+            --grid-size: 5vw; 
+        }
+
+        @media (min-width: 600px) {
+            :root { --grid-size: 30px; }
+        }
+
+        body {
+            margin: 0;
+            padding: 10px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f8f9fa;
+            font-family: -apple-system, sans-serif;
+            touch-action: manipulation; /* 더블탭 확대 방지 */
+        }
+
+        h2 { margin: 10px 0; font-size: 1.2rem; }
+
+        #controls {
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #status {
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #444;
+        }
+
+        /* 바둑판 외곽 */
+        .board-wrapper {
+            position: relative;
+            background-color: var(--board-color);
+            padding: calc(var(--grid-size) / 2);
+            border: 2px solid #5d4037;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 배경 격자 */
+        #grid-layer {
+            display: grid;
+            grid-template-columns: repeat(18, var(--grid-size));
+            grid-template-rows: repeat(18, var(--grid-size));
+        }
+
+        .grid-cell {
+            width: var(--grid-size);
+            height: var(--grid-size);
+            border: 0.5px solid var(--line-color);
+            box-sizing: border-box;
+        }
+
+        /* 화점(Star points) */
+        .star-point {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--line-color);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+
+        /* 돌 레이어 */
+        #stone-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: grid;
+            grid-template-columns: repeat(19, var(--grid-size));
+            grid-template-rows: repeat(19, var(--grid-size));
+        }
+
+        .intersection {
+            width: var(--grid-size);
+            height: var(--grid-size);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+
+        .stone {
+            width: 85%;
+            height: 85%;
+            border-radius: 50%;
+            transition: transform 0.1s ease-out;
+        }
+
+        .black { background: radial-gradient(circle at 30% 30%, #444, #000); box-shadow: 1px 1px 3px rgba(0,0,0,0.4); }
+        .white { background: radial-gradient(circle at 30% 30%, #fff, #ccc); box-shadow: 1px 1px 3px rgba(0,0,0,0.4); }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 1rem;
+            background-color: #5d4037;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Omok (19x19)</h2>
+
+    <div id="controls">
+        <label><input type="checkbox" id="rule33" checked> 흑 33 금지</label>
+        <label style="margin-left: 10px;"><input type="checkbox" id="rule44" checked> 흑 44 금지</label>
+    </div>
+
+    <div id="status">흑돌 차례</div>
+    
+    <div class="board-wrapper" id="board-container">
+        <div id="grid-layer"></div>
+        <div id="stone-layer"></div>
+    </div>
+
+    <button onclick="resetGame()">게임 초기화</button>
+
+    <script>
+        const size = 19;
+        let board = Array.from(Array(size), () => Array(size).fill(null));
+        let currentPlayer = 'black';
+        let isGameOver = false;
+
+        function init() {
+            const gridLayer = document.getElementById('grid-layer');
+            const stoneLayer = document.getElementById('stone-layer');
+            const boardContainer = document.getElementById('board-container');
+            
+            gridLayer.innerHTML = '';
+            stoneLayer.innerHTML = '';
+
+            // 격자 생성
+            for (let i = 0; i < 18 * 18; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                gridLayer.appendChild(cell);
+            }
+
+            // 화점(Star points) 추가 (3, 9, 15번 선의 교차점)
+            const stars = [3, 9, 15];
+            stars.forEach(y => {
+                stars.forEach(x => {
+                    const star = document.createElement('div');
+                    star.className = 'star-point';
+                    star.style.top = `calc(${y} * var(--grid-size) + var(--grid-size)/2)`;
+                    star.style.left = `calc(${x} * var(--grid-size) + var(--grid-size)/2)`;
+                    boardContainer.appendChild(star);
+                });
+            });
+
+            // 교차점 생성
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const inter = document.createElement('div');
+                    inter.className = 'intersection';
+                    inter.id = `cell-${y}-${x}`;
+                    // 클릭 및 터치 이벤트 대응
+                    inter.onclick = (e) => { e.preventDefault(); placeStone(y, x); };
+                    stoneLayer.appendChild(inter);
+                }
+            }
+        }
+
+        function placeStone(y, x) {
+            if (isGameOver || board[y][x]) return;
+
+            if (currentPlayer === 'black') {
+                const is33 = document.getElementById('rule33').checked;
+                const is44 = document.getElementById('rule44').checked;
+                if (is33 && checkForbidden(y, x, 'black', 3)) { alert("33 금수입니다!"); return; }
+                if (is44 && checkForbidden(y, x, 'black', 4)) { alert("44 금수입니다!"); return; }
+            }
+
+            board[y][x] = currentPlayer;
+            const el = document.getElementById(`cell-${y}-${x}`);
+            const stone = document.createElement('div');
+            stone.className = `stone ${currentPlayer}`;
+            el.appendChild(stone);
+
+            if (checkWin(y, x, currentPlayer)) {
+                document.getElementById('status').innerText = `승리: ${currentPlayer === 'black' ? '흑돌' : '백돌'}!`;
+                isGameOver = true;
+                return;
+            }
+
+            currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
+            document.getElementById('status').innerText = `${currentPlayer === 'black' ? '흑돌' : '백돌'} 차례`;
+        }
+
+        function getLineCount(y, x, dy, dx, color) {
+            let count = 1;
+            let ny = y + dy, nx = x + dx;
+            while(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx] === color) {
+                count++; ny += dy; nx += dx;
+            }
+            ny = y - dy, nx = x - dx;
+            while(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx] === color) {
+                count++; ny -= dy; nx -= dx;
+            }
+            return count;
+        }
+
+        function checkForbidden(y, x, color, target) {
+            board[y][x] = color;
+            let openLines = 0;
+            const directions = [[0,1],[1,0],[1,1],[1,-1]];
+            for (let [dy, dx] of directions) {
+                if (getLineCount(y, x, dy, dx, color) === target) openLines++;
+            }
+            board[y][x] = null;
+            return openLines >= 2;
+        }
+
+        function checkWin(y, x, color) {
+            const directions = [[0,1],[1,0],[1,1],[1,-1]];
+            for (let [dy, dx] of directions) {
+                if (getLineCount(y, x, dy, dx, color) >= 5) return true;
+            }
+            return false;
+        }
+
+        function resetGame() {
+            board = Array.from(Array(size), () => Array(size).fill(null));
+            currentPlayer = 'black';
+            isGameOver = false;
+            document.getElementById('status').innerText = "흑돌 차례";
+            init();
+        }
+
+        init();
+    </script>
+</body>
+</html>
