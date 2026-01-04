@@ -3,256 +3,466 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>반응형 모바일 오목</title>
+    <title>Clean Omok & Baduk (+Komi)</title>
     <style>
         :root {
-            --board-color: #e3a05b;
-            --line-color: #333;
-            /* 모바일: 화면 너비의 5%를 한 칸으로 설정. PC: 최대 30px */
-            --grid-size: 5vw; 
+            --bg-color: #e0e5ec;
+            --text-color: #4a4a4a;
+            --board-bg: #e3a05b;
+            --accent-brown: #5d4037;
+            --accent-orange: #ffcc80;
+            --accent-blue: #e3f2fd;
+            
+            /* Neumorphism Shadows */
+            --shadow-light: -9px -9px 16px rgba(255, 255, 255, 0.8);
+            --shadow-dark: 9px 9px 16px rgba(163, 177, 198, 0.6);
+            --inner-shadow: inset 6px 6px 10px 0 rgba(163, 177, 198, 0.7), 
+                            inset -6px -6px 10px 0 rgba(255, 255, 255, 0.8);
+            
+            --grid-size: 5.2vw;
         }
+        @media (min-width: 600px) { :root { --grid-size: 32px; } }
 
-        @media (min-width: 600px) {
-            :root { --grid-size: 30px; }
-        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            margin: 0;
-            padding: 10px 0;
+            margin: 0; padding: 20px 0;
+            display: flex; flex-direction: column; align-items: center;
+            background-color: var(--bg-color);
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            color: var(--text-color);
+            touch-action: manipulation;
+        }
+
+        /* --- 1. 상단 툴바 --- */
+        .toolbar {
+            width: 92%; max-width: 450px;
+            padding: 10px 15px;
+            border-radius: 50px;
+            background: var(--bg-color);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .mode-switch {
+            background: var(--bg-color);
+            box-shadow: var(--inner-shadow);
+            border-radius: 30px;
+            padding: 4px;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #f8f9fa;
-            font-family: -apple-system, sans-serif;
-            touch-action: manipulation; /* 더블탭 확대 방지 */
+        }
+        
+        .mode-btn {
+            border: none; background: transparent;
+            padding: 8px 20px; border-radius: 25px;
+            font-weight: bold; color: #888; cursor: pointer;
+            transition: 0.3s;
+        }
+        .mode-btn.active {
+            background: var(--accent-brown); color: white;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
         }
 
-        h2 { margin: 10px 0; font-size: 1.2rem; }
-
-        #controls {
-            margin-bottom: 10px;
-            font-size: 0.9rem;
-            background: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        .action-group { display: flex; gap: 10px; }
+        
+        .action-btn {
+            border: none; padding: 8px 18px; border-radius: 12px;
+            font-weight: bold; font-size: 0.9rem; cursor: pointer;
+            box-shadow: 3px 3px 6px rgba(163, 177, 198, 0.4), -3px -3px 6px rgba(255,255,255, 0.8);
+            transition: 0.2s; display: flex; align-items: center; gap: 5px;
         }
+        .action-btn:active { box-shadow: var(--inner-shadow); transform: scale(0.95); }
+        
+        .btn-undo { background: var(--accent-orange); color: #d84315; }
+        .btn-reset { background: var(--bg-color); color: #1565c0; }
 
-        #status {
-            margin-bottom: 10px;
+        /* --- 2. 상태 표시줄 --- */
+        .status-bar {
+            display: flex; gap: 15px; align-items: center;
+            margin-bottom: 20px; font-weight: bold; font-size: 1.1rem;
+            flex-wrap: wrap; justify-content: center;
+        }
+        
+        .omok-rules { display: flex; gap: 10px; font-size: 0.9rem; align-items: center; }
+        .checkbox-label {
+            display: flex; align-items: center; cursor: pointer;
+            background: var(--bg-color); padding: 5px 10px; border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(163, 177, 198, 0.3), -2px -2px 5px rgba(255,255,255,0.8);
+        }
+        .checkbox-label input { margin-right: 5px; accent-color: var(--accent-brown); }
+
+        /* 덤 입력 필드 스타일 추가 */
+        .komi-input {
+            width: 50px;
+            border: none;
+            background: var(--bg-color);
+            box-shadow: var(--inner-shadow);
+            border-radius: 5px;
+            padding: 3px;
+            text-align: center;
             font-weight: bold;
-            color: #444;
+            color: #555;
+            margin-left: 5px;
         }
 
-        /* 바둑판 외곽 */
-        .board-wrapper {
+        /* --- 3. 바둑판 --- */
+        .board-container {
+            padding: 15px;
+            border-radius: 20px;
+            background: var(--bg-color);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
+        }
+
+        .go-board {
             position: relative;
-            background-color: var(--board-color);
+            background-color: var(--board-bg);
             padding: calc(var(--grid-size) / 2);
-            border: 2px solid #5d4037;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            border-radius: 4px;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
         }
 
-        /* 배경 격자 */
         #grid-layer {
             display: grid;
             grid-template-columns: repeat(18, var(--grid-size));
             grid-template-rows: repeat(18, var(--grid-size));
         }
-
+        
         .grid-cell {
-            width: var(--grid-size);
-            height: var(--grid-size);
-            border: 0.5px solid var(--line-color);
-            box-sizing: border-box;
+            width: var(--grid-size); height: var(--grid-size);
+            border: 0.5px solid rgba(0,0,0,0.5); box-sizing: border-box;
         }
 
-        /* 화점(Star points) */
         .star-point {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: var(--line-color);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1;
+            position: absolute; width: 6px; height: 6px; background: #000;
+            border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;
         }
 
-        /* 돌 레이어 */
         #stone-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
+            position: absolute; top: 0; left: 0;
             display: grid;
             grid-template-columns: repeat(19, var(--grid-size));
             grid-template-rows: repeat(19, var(--grid-size));
         }
-
+        
         .intersection {
-            width: var(--grid-size);
-            height: var(--grid-size);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2;
+            width: var(--grid-size); height: var(--grid-size);
+            display: flex; justify-content: center; align-items: center; z-index: 10;
         }
 
         .stone {
-            width: 85%;
-            height: 85%;
-            border-radius: 50%;
-            transition: transform 0.1s ease-out;
+            width: 90%; height: 90%; border-radius: 50%; position: relative;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+        }
+        .black { background: radial-gradient(circle at 30% 30%, #555, #000); }
+        .white { background: radial-gradient(circle at 30% 30%, #fff, #ddd); }
+
+        .stone.last::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); width: 30%; height: 30%;
+            background: rgba(231, 76, 60, 0.9); border-radius: 50%;
+            border: 1px solid white;
         }
 
-        .black { background: radial-gradient(circle at 30% 30%, #444, #000); box-shadow: 1px 1px 3px rgba(0,0,0,0.4); }
-        .white { background: radial-gradient(circle at 30% 30%, #fff, #ccc); box-shadow: 1px 1px 3px rgba(0,0,0,0.4); }
-
-        button {
-            margin-top: 20px;
-            padding: 12px 30px;
-            font-size: 1rem;
-            background-color: #5d4037;
-            color: white;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
 
-    <h2>Omok (19x19)</h2>
-
-    <div id="controls">
-        <label><input type="checkbox" id="rule33" checked> 흑 33 금지</label>
-        <label style="margin-left: 10px;"><input type="checkbox" id="rule44" checked> 흑 44 금지</label>
+    <div class="toolbar">
+        <div class="mode-switch">
+            <button id="btn-omok" class="mode-btn active" onclick="setMode('omok')">오목</button>
+            <button id="btn-go" class="mode-btn" onclick="setMode('go')">바둑</button>
+        </div>
+        
+        <div class="action-group">
+            <button class="action-btn btn-undo" onclick="undoMove()">⏪ 무르기</button>
+            <button class="action-btn btn-reset" onclick="resetGame()">🔄 비우기</button>
+        </div>
     </div>
 
-    <div id="status">흑돌 차례</div>
-    
-    <div class="board-wrapper" id="board-container">
-        <div id="grid-layer"></div>
-        <div id="stone-layer"></div>
+    <div class="status-bar">
+        <span id="turn-text">흑돌 차례</span>
+        
+        <div id="omok-controls" class="omok-rules">
+            <label class="checkbox-label"><input type="checkbox" id="rule33" checked>흑3-3금지</label>
+            <label class="checkbox-label"><input type="checkbox" id="rule44" checked>흑4-4금지</label>
+        </div>
+        
+        <div id="go-score" class="omok-rules" style="display:none; font-size: 0.9rem; color: #444; align-items: center;">
+            <span>흑집: <span id="cap-black" style="font-weight:bold">0</span></span>
+            <span style="color:#ccc">|</span>
+            <span>백집: <span id="cap-white" style="font-weight:bold">6.5</span></span>
+            <span style="font-size:0.8rem; margin-left:5px;">
+                (덤: <input type="number" id="komi-val" class="komi-input" value="6.5" step="0.5" onchange="updateUI()">)
+            </span>
+        </div>
     </div>
 
-    <button onclick="resetGame()">게임 초기화</button>
+    <div class="board-container">
+        <div class="go-board">
+            <div id="grid-layer"></div>
+            <div id="stone-layer"></div>
+        </div>
+    </div>
 
     <script>
         const size = 19;
-        let board = Array.from(Array(size), () => Array(size).fill(null));
+        let board = [];
         let currentPlayer = 'black';
+        let gameMode = 'omok';
+        let historyStack = [];
+        let captured = { black: 0, white: 0 }; // [내 색깔]이 따낸 돌 수
         let isGameOver = false;
+        let koPos = null;
+
+        const gridLayer = document.getElementById('grid-layer');
+        const stoneLayer = document.getElementById('stone-layer');
+        const turnText = document.getElementById('turn-text');
+        const komiInput = document.getElementById('komi-val'); // 덤 입력 요소
 
         function init() {
-            const gridLayer = document.getElementById('grid-layer');
-            const stoneLayer = document.getElementById('stone-layer');
-            const boardContainer = document.getElementById('board-container');
-            
             gridLayer.innerHTML = '';
             stoneLayer.innerHTML = '';
 
-            // 격자 생성
             for (let i = 0; i < 18 * 18; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'grid-cell';
                 gridLayer.appendChild(cell);
             }
-
-            // 화점(Star points) 추가 (3, 9, 15번 선의 교차점)
             const stars = [3, 9, 15];
-            stars.forEach(y => {
-                stars.forEach(x => {
-                    const star = document.createElement('div');
-                    star.className = 'star-point';
-                    star.style.top = `calc(${y} * var(--grid-size) + var(--grid-size)/2)`;
-                    star.style.left = `calc(${x} * var(--grid-size) + var(--grid-size)/2)`;
-                    boardContainer.appendChild(star);
-                });
-            });
+            stars.forEach(y => stars.forEach(x => {
+                const star = document.createElement('div');
+                star.className = 'star-point';
+                star.style.top = `calc(${y} * var(--grid-size) + var(--grid-size)/2)`;
+                star.style.left = `calc(${x} * var(--grid-size) + var(--grid-size)/2)`;
+                gridLayer.appendChild(star);
+            }));
 
-            // 교차점 생성
             for (let y = 0; y < size; y++) {
                 for (let x = 0; x < size; x++) {
                     const inter = document.createElement('div');
                     inter.className = 'intersection';
                     inter.id = `cell-${y}-${x}`;
-                    // 클릭 및 터치 이벤트 대응
-                    inter.onclick = (e) => { e.preventDefault(); placeStone(y, x); };
+                    inter.onclick = (e) => { e.preventDefault(); handleMove(y, x); };
                     stoneLayer.appendChild(inter);
                 }
             }
+            resetData();
         }
 
-        function placeStone(y, x) {
+        function resetData() {
+            board = Array.from(Array(size), () => Array(size).fill(null));
+            historyStack = [];
+            captured = { black: 0, white: 0 };
+            currentPlayer = 'black';
+            isGameOver = false;
+            koPos = null;
+            renderBoard();
+            updateUI();
+        }
+
+        function setMode(mode) {
+            if(historyStack.length > 0 && !confirm("모드 변경 시 게임이 초기화됩니다. 진행하시겠습니까?")) return;
+            gameMode = mode;
+            
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+            
+            document.getElementById('omok-controls').style.display = (mode === 'omok') ? 'flex' : 'none';
+            document.getElementById('go-score').style.display = (mode === 'go') ? 'flex' : 'none';
+            
+            resetGame();
+        }
+
+        function handleMove(y, x) {
             if (isGameOver || board[y][x]) return;
 
+            const snapshot = {
+                board: JSON.parse(JSON.stringify(board)),
+                currentPlayer,
+                captured: {...captured},
+                koPos
+            };
+
+            let success = false;
+            if (gameMode === 'omok') success = processOmok(y, x);
+            else success = processGo(y, x);
+
+            if (success) {
+                historyStack.push({ ...snapshot, move: {y, x} });
+                playSound();
+                renderBoard(y, x);
+                
+                if (gameMode === 'omok' && checkOmokWin(y, x)) {
+                    setTimeout(() => alert(`${currentPlayer==='black'?'흑':'백'} 승리!`), 20);
+                    isGameOver = true;
+                    return;
+                }
+                
+                currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
+                updateUI();
+            }
+        }
+
+        function processOmok(y, x) {
             if (currentPlayer === 'black') {
-                const is33 = document.getElementById('rule33').checked;
-                const is44 = document.getElementById('rule44').checked;
-                if (is33 && checkForbidden(y, x, 'black', 3)) { alert("33 금수입니다!"); return; }
-                if (is44 && checkForbidden(y, x, 'black', 4)) { alert("44 금수입니다!"); return; }
+                const r33 = document.getElementById('rule33').checked;
+                const r44 = document.getElementById('rule44').checked;
+                if (r33 && checkForbidden(y, x, 3)) { alert("3-3 금수입니다."); return false; }
+                if (r44 && checkForbidden(y, x, 4)) { alert("4-4 금수입니다."); return false; }
             }
-
             board[y][x] = currentPlayer;
-            const el = document.getElementById(`cell-${y}-${x}`);
-            const stone = document.createElement('div');
-            stone.className = `stone ${currentPlayer}`;
-            el.appendChild(stone);
-
-            if (checkWin(y, x, currentPlayer)) {
-                document.getElementById('status').innerText = `승리: ${currentPlayer === 'black' ? '흑돌' : '백돌'}!`;
-                isGameOver = true;
-                return;
-            }
-
-            currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
-            document.getElementById('status').innerText = `${currentPlayer === 'black' ? '흑돌' : '백돌'} 차례`;
+            return true;
         }
 
-        function getLineCount(y, x, dy, dx, color) {
-            let count = 1;
-            let ny = y + dy, nx = x + dx;
-            while(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx] === color) {
-                count++; ny += dy; nx += dx;
-            }
-            ny = y - dy, nx = x - dx;
-            while(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx] === color) {
-                count++; ny -= dy; nx -= dx;
-            }
-            return count;
-        }
-
-        function checkForbidden(y, x, color, target) {
-            board[y][x] = color;
-            let openLines = 0;
-            const directions = [[0,1],[1,0],[1,1],[1,-1]];
-            for (let [dy, dx] of directions) {
-                if (getLineCount(y, x, dy, dx, color) === target) openLines++;
+        function checkForbidden(y, x, k) {
+            board[y][x] = 'black';
+            let cnt = 0;
+            const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+            for(let [dy, dx] of dirs) {
+                let c = 1;
+                let i=1; while(board[y+dy*i]?.[x+dx*i] === 'black') { c++; i++; }
+                let j=1; while(board[y-dy*j]?.[x-dx*j] === 'black') { c++; j++; }
+                if(c === k) cnt++;
             }
             board[y][x] = null;
-            return openLines >= 2;
+            return cnt >= 2;
         }
 
-        function checkWin(y, x, color) {
-            const directions = [[0,1],[1,0],[1,1],[1,-1]];
-            for (let [dy, dx] of directions) {
-                if (getLineCount(y, x, dy, dx, color) >= 5) return true;
+        function checkOmokWin(y, x) {
+            const c = board[y][x];
+            const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+            for(let [dy, dx] of dirs) {
+                let count = 1;
+                let i=1; while(board[y+dy*i]?.[x+dx*i] === c) { count++; i++; }
+                i=1; while(board[y-dy*i]?.[x-dx*i] === c) { count++; i++; }
+                if(count >= 5) return true;
             }
             return false;
         }
 
-        function resetGame() {
-            board = Array.from(Array(size), () => Array(size).fill(null));
-            currentPlayer = 'black';
-            isGameOver = false;
-            document.getElementById('status').innerText = "흑돌 차례";
-            init();
+        function processGo(y, x) {
+            if (koPos && koPos.y === y && koPos.x === x) {
+                alert("패(Ko)입니다. 다른 곳에 두세요."); return false;
+            }
+            
+            const opponent = (currentPlayer === 'black') ? 'white' : 'black';
+            board[y][x] = currentPlayer;
+            let capturedStones = [];
+            const neighbors = [[0,1],[0,-1],[1,0],[-1,0]];
+
+            neighbors.forEach(([dy, dx]) => {
+                const ny=y+dy, nx=x+dx;
+                if(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx]===opponent) {
+                    const group = getGroup(ny, nx, opponent);
+                    if(getLiberties(group) === 0) capturedStones.push(...group);
+                }
+            });
+
+            const myGroup = getGroup(y, x, currentPlayer);
+            if(capturedStones.length === 0 && getLiberties(myGroup) === 0) {
+                board[y][x] = null;
+                alert("착수 금지(자살수)입니다.");
+                return false;
+            }
+
+            capturedStones.forEach(p => board[p.y][p.x] = null);
+            captured[currentPlayer] += capturedStones.length;
+
+            if (capturedStones.length === 1 && myGroup.length === 1 && getLiberties(myGroup) === 1) {
+                koPos = capturedStones[0];
+            } else {
+                koPos = null;
+            }
+            return true;
         }
 
-        init();
+        function getGroup(y, x, color) {
+            let g = [], visited = new Set(), stack = [{y, x}];
+            visited.add(`${y},${x}`);
+            while(stack.length) {
+                let cur = stack.pop(); g.push(cur);
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dy, dx]) => {
+                    let ny=cur.y+dy, nx=cur.x+dx;
+                    if(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx]===color && !visited.has(`${ny},${nx}`)) {
+                        visited.add(`${ny},${nx}`); stack.push({y:ny, x:nx});
+                    }
+                });
+            }
+            return g;
+        }
+
+        function getLiberties(group) {
+            let lib = new Set();
+            group.forEach(p => {
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dy, dx]) => {
+                    let ny=p.y+dy, nx=p.x+dx;
+                    if(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx]===null) lib.add(`${ny},${nx}`);
+                });
+            });
+            return lib.size;
+        }
+
+        function undoMove() {
+            if(historyStack.length === 0) return;
+            const prev = historyStack.pop();
+            board = prev.board;
+            currentPlayer = prev.currentPlayer;
+            captured = prev.captured;
+            koPos = prev.koPos;
+            isGameOver = false;
+            
+            let lastMove = historyStack.length > 0 ? historyStack[historyStack.length-1].move : {y:-1, x:-1};
+            renderBoard(lastMove.y, lastMove.x);
+            updateUI();
+        }
+
+        function renderBoard(lastY = -1, lastX = -1) {
+            for(let y=0; y<size; y++) {
+                for(let x=0; x<size; x++) {
+                    const cell = document.getElementById(`cell-${y}-${x}`);
+                    cell.innerHTML = '';
+                    if(board[y][x]) {
+                        const s = document.createElement('div');
+                        s.className = `stone ${board[y][x]}`;
+                        if(y===lastY && x===lastX) s.classList.add('last');
+                        cell.appendChild(s);
+                    }
+                }
+            }
+        }
+
+        // UI 업데이트: 덤 기능 로직 추가
+        function updateUI() {
+            turnText.innerText = `${currentPlayer === 'black' ? '흑돌' : '백돌'} 차례`;
+            
+            // 흑집 = 백돌을 따낸 수
+            document.getElementById('cap-black').innerText = captured.white;
+            
+            // 백집 = 흑돌을 따낸 수 + 덤(Komi)
+            const komi = parseFloat(komiInput.value) || 0;
+            const whiteScore = captured.black + komi;
+            
+            document.getElementById('cap-white').innerText = whiteScore;
+        }
+
+        function resetGame() { resetData(); }
+
+        function playSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.frequency.setValueAtTime(600, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 0.1);
+            } catch(e) {}
+        }
+
+        window.onload = init;
     </script>
 </body>
 </html>
