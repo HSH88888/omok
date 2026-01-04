@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smooth AI Omok & Baduk</title>
+    <title>AI Omok Pro (9 Levels)</title>
     <style>
         :root {
             --bg-color: #e0e5ec;
@@ -25,7 +25,7 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            margin: 0; padding: 20px 0;
+            margin: 0; padding: 15px 0;
             display: flex; flex-direction: column; align-items: center;
             background-color: var(--bg-color);
             font-family: 'Pretendard', -apple-system, sans-serif;
@@ -35,21 +35,21 @@
 
         /* 툴바 스타일 */
         .toolbar {
-            width: 95%; max-width: 500px;
+            width: 95%; max-width: 550px;
             padding: 10px 15px;
-            border-radius: 50px;
+            border-radius: 25px;
             background: var(--bg-color);
             box-shadow: var(--shadow-light), var(--shadow-dark);
             display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
             gap: 10px; margin-bottom: 20px;
         }
 
+        /* 왼쪽: 모드 스위치 */
         .mode-switch {
             background: var(--bg-color);
             box-shadow: var(--inner-shadow);
             border-radius: 30px; padding: 4px; display: flex;
         }
-        
         .mode-btn {
             border: none; background: transparent;
             padding: 8px 15px; border-radius: 25px;
@@ -61,16 +61,18 @@
             box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
         }
 
-        .ai-switch {
-            display: flex; align-items: center; gap: 5px;
-            font-size: 0.85rem; font-weight: bold;
-            background: var(--bg-color); padding: 5px 10px; border-radius: 20px;
-            box-shadow: 3px 3px 6px rgba(163, 177, 198, 0.4), -3px -3px 6px rgba(255,255,255, 0.8);
+        /* 중앙: AI 설정 (Select Box) */
+        .ai-controls {
+            display: flex; align-items: center; gap: 8px;
         }
-        .ai-switch select {
-            border: none; background: transparent; font-weight: bold; color: #333; outline: none;
+        .select-box {
+            border: none; background: var(--bg-color);
+            box-shadow: 3px 3px 6px rgba(163, 177, 198, 0.4), -3px -3px 6px rgba(255,255,255, 0.8);
+            border-radius: 12px; padding: 5px 10px;
+            font-size: 0.85rem; font-weight: bold; color: #333; outline: none; cursor: pointer;
         }
 
+        /* 오른쪽: 액션 버튼 */
         .action-group { display: flex; gap: 8px; }
         .action-btn {
             border: none; padding: 8px 12px; border-radius: 12px;
@@ -138,7 +140,7 @@
         .stone {
             width: 90%; height: 90%; border-radius: 50%; position: relative;
             box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-            transition: transform 0.1s; /* 부드러운 등장 */
+            transition: transform 0.1s;
         }
         .black { background: radial-gradient(circle at 30% 30%, #555, #000); }
         .white { background: radial-gradient(circle at 30% 30%, #fff, #ddd); }
@@ -149,11 +151,8 @@
             background: rgba(231, 76, 60, 0.9); border-radius: 50%; border: 1px solid white;
         }
 
-        /* 수정된 생각중 스타일: 투명도 변화 제거 -> 깜빡임 해결 */
-        .thinking { 
-            cursor: wait; 
-            pointer-events: none; /* 클릭만 방지 */
-        }
+        /* AI 생각중: 깜빡임 없이 클릭만 막음 */
+        .thinking { pointer-events: none; cursor: wait; }
 
     </style>
 </head>
@@ -165,10 +164,22 @@
             <button id="btn-go" class="mode-btn" onclick="setGameMode('go')">바둑</button>
         </div>
 
-        <div class="ai-switch">
-            🤖 <select id="play-mode" onchange="resetGame()">
+        <div class="ai-controls">
+            <select id="play-mode" class="select-box" onchange="resetGame()">
                 <option value="hvh">사람 vs 사람</option>
                 <option value="hva">사람 vs AI</option>
+            </select>
+            
+            <select id="ai-level" class="select-box" style="display:none;">
+                <option value="1">Lv.1 (입문)</option>
+                <option value="2">Lv.2 (초보)</option>
+                <option value="3">Lv.3 (하수)</option>
+                <option value="4">Lv.4 (중수)</option>
+                <option value="5">Lv.5 (보통)</option>
+                <option value="6">Lv.6 (숙련)</option>
+                <option value="7">Lv.7 (고수)</option>
+                <option value="8">Lv.8 (초고수)</option>
+                <option value="9" selected>Lv.9 (신)</option>
             </select>
         </div>
         
@@ -220,6 +231,7 @@
         const turnText = document.getElementById('turn-text');
         const komiInput = document.getElementById('komi-val');
         const playModeSelect = document.getElementById('play-mode');
+        const aiLevelSelect = document.getElementById('ai-level');
         const boardArea = document.getElementById('board-area');
 
         function init() {
@@ -259,7 +271,7 @@
             koPos = null;
             isAiThinking = false;
             boardArea.classList.remove('thinking');
-            renderBoard(); // Force full render
+            renderBoard(); 
             updateUI();
         }
 
@@ -278,12 +290,10 @@
 
             if (!executeMove(y, x)) return;
 
-            // AI 턴
             if (!isGameOver && playMode === 'hva' && currentPlayer === 'white') {
                 isAiThinking = true;
-                boardArea.classList.add('thinking'); // 클릭 방지, 깜빡임 없음
+                boardArea.classList.add('thinking'); 
                 
-                // setTimeout을 사용하여 브라우저가 UI를 그릴 시간을 줌
                 setTimeout(() => {
                     aiMove();
                     isAiThinking = false;
@@ -307,7 +317,7 @@
             if (success) {
                 historyStack.push({ ...snapshot, move: {y, x} });
                 playSound();
-                renderBoard(y, x); // 최적화된 렌더링 호출
+                renderBoard(y, x); 
                 
                 if (gameMode === 'omok' && checkOmokWin(y, x)) {
                     setTimeout(() => alert(`${currentPlayer==='black'?'흑':'백'} 승리!`), 20);
@@ -322,25 +332,50 @@
             return false;
         }
 
-        // --- AI Logic ---
+        // --- 9단계 AI Logic ---
         function aiMove() {
             if (isGameOver) return;
-            let bestMove = (gameMode === 'go') ? getBasicGoMove() : getOmokBestMove();
+            const level = parseInt(aiLevelSelect.value);
+            let bestMove = (gameMode === 'go') ? getBasicGoMove() : getOmokWeightedMove(level);
             if (bestMove) executeMove(bestMove.y, bestMove.x);
+            else alert("AI가 둘 곳이 없습니다.");
         }
 
-        function getOmokBestMove() {
+        function getOmokWeightedMove(level) {
             let maxScore = -Infinity;
             let moves = [];
             const center = Math.floor(size / 2);
+            
+            // 레벨별 파라미터 설정 (실수 확률, 방어 가중치, 공격 가중치)
+            let errorRate = 0; // 0 ~ 1 (높을수록 랜덤)
+            let defenseWeight = 1.0; 
+            
+            if (level <= 3) { errorRate = 0.6; defenseWeight = 0.5; }
+            else if (level <= 6) { errorRate = 0.2; defenseWeight = 0.9; }
+            else { errorRate = 0.0; defenseWeight = 1.5; } // 고수는 방어 중시
+
             for(let y=0; y<size; y++) {
                 for(let x=0; x<size; x++) {
                     if(!board[y][x]) {
-                        const attackScore = evaluatePos(y, x, 'white');
-                        const defenseScore = evaluatePos(y, x, 'black');
+                        // AI(White) 공격 점수
+                        let attackScore = evaluatePos(y, x, 'white');
+                        // Player(Black) 방어 점수
+                        let defenseScore = evaluatePos(y, x, 'black');
+                        
+                        // 레벨 9는 3-3, 4-4 등 절대 방어
+                        if (level >= 8 && defenseScore >= 5000) defenseScore *= 2.0;
+
+                        // 위치 점수 (중앙 선호)
                         const dist = Math.abs(y - center) + Math.abs(x - center);
                         const centerBonus = (size - dist); 
-                        let totalScore = attackScore + (defenseScore * 1.15) + centerBonus; 
+
+                        // 총점 계산 (노이즈 추가로 난이도 조절)
+                        let noise = Math.random() * (1000 * errorRate);
+                        let totalScore = attackScore + (defenseScore * defenseWeight) + centerBonus + noise;
+
+                        // 낮은 레벨은 높은 점수 자리를 가끔 무시하게 만듦
+                        if (level <= 3 && Math.random() < 0.3) totalScore = 0;
+
                         if (totalScore > maxScore) {
                             maxScore = totalScore;
                             moves = [{y, x}];
@@ -363,10 +398,11 @@
                 let j=1; while(board[y-dy*j]?.[x-dx*j] === color) { count++; j++; }
                 if(board[y-dy*j]?.[x-dx*j] !== null) blocked++;
 
-                if (count >= 5) score += 100000;
-                else if (count === 4) score += (blocked === 0) ? 10000 : 1000;
-                else if (count === 3) score += (blocked === 0) ? 500 : 50;
-                else if (count === 2 && blocked === 0) score += 10;
+                // 점수 체계
+                if (count >= 5) score += 200000;
+                else if (count === 4) score += (blocked === 0) ? 50000 : 2500;
+                else if (count === 3) score += (blocked === 0) ? 3000 : 200;
+                else if (count === 2 && blocked === 0) score += 50;
             });
             return score;
         }
@@ -384,9 +420,7 @@
                     }
                 }
             }
-            if(validMoves.length > 0) {
-                return validMoves[Math.floor(Math.random() * validMoves.length)];
-            }
+            if(validMoves.length > 0) return validMoves[Math.floor(Math.random() * validMoves.length)];
             return null;
         }
 
@@ -493,35 +527,27 @@
             updateUI();
         }
 
-        // --- Rendering Optimization (Flicker Fix) ---
         function renderBoard(lastY = -1, lastX = -1) {
             for(let y=0; y<size; y++) {
                 for(let x=0; x<size; x++) {
                     const cell = document.getElementById(`cell-${y}-${x}`);
                     const stoneVal = board[y][x];
-                    
-                    // DOM 상태와 JS 상태 비교 (최적화: 변경된 것만 갱신)
                     const existingStone = cell.querySelector('.stone');
                     
                     if (stoneVal) {
-                        // 돌이 있어야 하는데...
                         if (!existingStone) {
-                            // 없으면 새로 만듦
                             addStoneToCell(cell, stoneVal, y===lastY && x===lastX);
                         } else {
-                            // 있는데 색이 다르거나 last 마커가 다르면 교체
                             const isBlack = existingStone.classList.contains('black');
                             const shouldBeBlack = (stoneVal === 'black');
                             const isLast = existingStone.classList.contains('last');
                             const shouldBeLast = (y===lastY && x===lastX);
-
                             if (isBlack !== shouldBeBlack || isLast !== shouldBeLast) {
                                 cell.innerHTML = '';
                                 addStoneToCell(cell, stoneVal, shouldBeLast);
                             }
                         }
                     } else {
-                        // 돌이 없어야 하는데 있으면 삭제
                         if (existingStone) cell.innerHTML = '';
                     }
                 }
@@ -538,6 +564,9 @@
         function updateUI() {
             playModeSelect.value = playMode;
             playMode = playModeSelect.value;
+            // AI 레벨 선택창 표시 여부
+            aiLevelSelect.style.display = (playMode === 'hva') ? 'block' : 'none';
+            
             turnText.innerText = `${currentPlayer === 'black' ? '흑돌' : '백돌'} 차례`;
             document.getElementById('cap-black').innerText = captured.white;
             const komi = parseFloat(komiInput.value) || 0;
