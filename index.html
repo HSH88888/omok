@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Omok & Baduk</title>
+    <title>Smooth AI Omok & Baduk</title>
     <style>
         :root {
             --bg-color: #e0e5ec;
@@ -11,7 +11,6 @@
             --board-bg: #e3a05b;
             --accent-brown: #5d4037;
             --accent-orange: #ffcc80;
-            --accent-blue: #e3f2fd;
             
             /* Neumorphism Shadows */
             --shadow-light: -9px -9px 16px rgba(255, 255, 255, 0.8);
@@ -34,7 +33,7 @@
             touch-action: manipulation;
         }
 
-        /* --- 상단 툴바 --- */
+        /* 툴바 스타일 */
         .toolbar {
             width: 95%; max-width: 500px;
             padding: 10px 15px;
@@ -62,7 +61,6 @@
             box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
         }
 
-        /* AI 스위치 (새로 추가됨) */
         .ai-switch {
             display: flex; align-items: center; gap: 5px;
             font-size: 0.85rem; font-weight: bold;
@@ -74,7 +72,6 @@
         }
 
         .action-group { display: flex; gap: 8px; }
-        
         .action-btn {
             border: none; padding: 8px 12px; border-radius: 12px;
             font-weight: bold; font-size: 0.85rem; cursor: pointer;
@@ -85,27 +82,25 @@
         .btn-undo { background: var(--accent-orange); color: #d84315; }
         .btn-reset { background: var(--bg-color); color: #1565c0; }
 
-        /* --- 상태 표시줄 --- */
+        /* 상태 표시줄 */
         .status-bar {
             display: flex; gap: 15px; align-items: center;
             margin-bottom: 20px; font-weight: bold; font-size: 1.1rem;
             flex-wrap: wrap; justify-content: center;
         }
-        
         .omok-rules { display: flex; gap: 10px; font-size: 0.9rem; align-items: center; }
         .checkbox-label {
             display: flex; align-items: center; cursor: pointer;
             background: var(--bg-color); padding: 5px 10px; border-radius: 10px;
             box-shadow: 2px 2px 5px rgba(163, 177, 198, 0.3), -2px -2px 5px rgba(255,255,255,0.8);
         }
-        .checkbox-label input { margin-right: 5px; accent-color: var(--accent-brown); }
         .komi-input {
             width: 45px; border: none; background: var(--bg-color);
             box-shadow: var(--inner-shadow); border-radius: 5px;
             padding: 3px; text-align: center; font-weight: bold; color: #555; margin-left: 5px;
         }
 
-        /* --- 바둑판 --- */
+        /* 바둑판 */
         .board-container {
             padding: 15px; border-radius: 20px;
             background: var(--bg-color);
@@ -139,19 +134,26 @@
             width: var(--grid-size); height: var(--grid-size);
             display: flex; justify-content: center; align-items: center; z-index: 10;
         }
+        
         .stone {
             width: 90%; height: 90%; border-radius: 50%; position: relative;
             box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+            transition: transform 0.1s; /* 부드러운 등장 */
         }
         .black { background: radial-gradient(circle at 30% 30%, #555, #000); }
         .white { background: radial-gradient(circle at 30% 30%, #fff, #ddd); }
+        
         .stone.last::after {
             content: ''; position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%); width: 30%; height: 30%;
             background: rgba(231, 76, 60, 0.9); border-radius: 50%; border: 1px solid white;
         }
-        /* AI 생각중 로딩 표시 */
-        .thinking { cursor: wait; opacity: 0.7; }
+
+        /* 수정된 생각중 스타일: 투명도 변화 제거 -> 깜빡임 해결 */
+        .thinking { 
+            cursor: wait; 
+            pointer-events: none; /* 클릭만 방지 */
+        }
 
     </style>
 </head>
@@ -205,8 +207,8 @@
         const size = 19;
         let board = [];
         let currentPlayer = 'black';
-        let gameMode = 'omok'; // 'omok' or 'go'
-        let playMode = 'hvh'; // 'hvh' or 'hva'
+        let gameMode = 'omok'; 
+        let playMode = 'hvh'; 
         let historyStack = [];
         let captured = { black: 0, white: 0 };
         let isGameOver = false;
@@ -257,7 +259,7 @@
             koPos = null;
             isAiThinking = false;
             boardArea.classList.remove('thinking');
-            renderBoard();
+            renderBoard(); // Force full render
             updateUI();
         }
 
@@ -271,26 +273,25 @@
             resetGame();
         }
 
-        // 통합 착수 핸들러
         function handleMove(y, x) {
             if (isGameOver || board[y][x] || isAiThinking) return;
 
-            // 사람의 착수
             if (!executeMove(y, x)) return;
 
-            // AI 턴 처리
+            // AI 턴
             if (!isGameOver && playMode === 'hva' && currentPlayer === 'white') {
                 isAiThinking = true;
-                boardArea.classList.add('thinking');
+                boardArea.classList.add('thinking'); // 클릭 방지, 깜빡임 없음
+                
+                // setTimeout을 사용하여 브라우저가 UI를 그릴 시간을 줌
                 setTimeout(() => {
                     aiMove();
                     isAiThinking = false;
                     boardArea.classList.remove('thinking');
-                }, 500); // 0.5초 딜레이로 생각하는 척 연출
+                }, 300); 
             }
         }
 
-        // 실제 돌을 놓는 로직
         function executeMove(y, x) {
             const snapshot = {
                 board: JSON.parse(JSON.stringify(board)),
@@ -306,7 +307,7 @@
             if (success) {
                 historyStack.push({ ...snapshot, move: {y, x} });
                 playSound();
-                renderBoard(y, x);
+                renderBoard(y, x); // 최적화된 렌더링 호출
                 
                 if (gameMode === 'omok' && checkOmokWin(y, x)) {
                     setTimeout(() => alert(`${currentPlayer==='black'?'흑':'백'} 승리!`), 20);
@@ -321,50 +322,25 @@
             return false;
         }
 
-        // --- AI Logic (Heuristic) ---
+        // --- AI Logic ---
         function aiMove() {
             if (isGameOver) return;
-            
-            let bestMove = null;
-            
-            // 바둑 AI (단순 랜덤/활로 기반 - 매우 약함)
-            if (gameMode === 'go') {
-                bestMove = getBasicGoMove();
-            } 
-            // 오목 AI (패턴 매칭 - 꽤 쓸만함)
-            else {
-                bestMove = getOmokBestMove();
-            }
-
-            if (bestMove) {
-                executeMove(bestMove.y, bestMove.x);
-            } else {
-                alert("AI가 둘 곳이 없습니다. 무승부?");
-            }
+            let bestMove = (gameMode === 'go') ? getBasicGoMove() : getOmokBestMove();
+            if (bestMove) executeMove(bestMove.y, bestMove.x);
         }
 
         function getOmokBestMove() {
             let maxScore = -Infinity;
             let moves = [];
             const center = Math.floor(size / 2);
-
             for(let y=0; y<size; y++) {
                 for(let x=0; x<size; x++) {
                     if(!board[y][x]) {
-                        // AI는 백돌(white), 플레이어는 흑돌(black)
-                        // 공격 점수 (내 돌 연결)
                         const attackScore = evaluatePos(y, x, 'white');
-                        // 방어 점수 (상대 돌 막기 - 가중치 높음)
                         const defenseScore = evaluatePos(y, x, 'black');
-                        
-                        // 중앙 가중치 (초반에 중앙 선호)
                         const dist = Math.abs(y - center) + Math.abs(x - center);
                         const centerBonus = (size - dist); 
-
-                        // 총점 = 공격 + 방어 + 위치점수
-                        // 방어가 중요하므로 defenseScore에 약간 가중치
-                        let totalScore = attackScore + (defenseScore * 1.1) + centerBonus;
-
+                        let totalScore = attackScore + (defenseScore * 1.15) + centerBonus; 
                         if (totalScore > maxScore) {
                             maxScore = totalScore;
                             moves = [{y, x}];
@@ -380,70 +356,41 @@
         function evaluatePos(y, x, color) {
             const dirs = [[0,1],[1,0],[1,1],[1,-1]];
             let score = 0;
-
             dirs.forEach(([dy, dx]) => {
-                let count = 1; // 현재 위치 포함
-                let blocked = 0;
-                
-                // 정방향 탐색
-                let i=1; 
-                while(board[y+dy*i]?.[x+dx*i] === color) { count++; i++; }
-                if(board[y+dy*i]?.[x+dx*i] !== null) blocked++; // 벽이나 상대돌
-
-                // 역방향 탐색
-                let j=1; 
-                while(board[y-dy*j]?.[x-dx*j] === color) { count++; j++; }
+                let count = 1; let blocked = 0;
+                let i=1; while(board[y+dy*i]?.[x+dx*i] === color) { count++; i++; }
+                if(board[y+dy*i]?.[x+dx*i] !== null) blocked++;
+                let j=1; while(board[y-dy*j]?.[x-dx*j] === color) { count++; j++; }
                 if(board[y-dy*j]?.[x-dx*j] !== null) blocked++;
 
-                // 점수 부여 규칙
-                if (count >= 5) score += 100000; // 5목 (승리)
-                else if (count === 4) {
-                    if (blocked === 0) score += 10000; // 열린 4 (다음 턴 승리)
-                    else if (blocked === 1) score += 1000; // 닫힌 4
-                }
-                else if (count === 3) {
-                    if (blocked === 0) score += 500; // 열린 3
-                    else if (blocked === 1) score += 50;
-                }
-                else if (count === 2) {
-                    if (blocked === 0) score += 10;
-                }
+                if (count >= 5) score += 100000;
+                else if (count === 4) score += (blocked === 0) ? 10000 : 1000;
+                else if (count === 3) score += (blocked === 0) ? 500 : 50;
+                else if (count === 2 && blocked === 0) score += 10;
             });
             return score;
         }
 
         function getBasicGoMove() {
-            // 바둑 AI는 너무 복잡하므로 랜덤으로 두되, 자살수는 피함
             let validMoves = [];
             for(let y=0; y<size; y++) {
                 for(let x=0; x<size; x++) {
                     if(!board[y][x]) {
-                        // 가상으로 둬보고 자살수 체크 (약식)
                         board[y][x] = 'white';
                         let myGroup = getGroup(y, x, 'white');
                         let liberties = getLiberties(myGroup);
-                        board[y][x] = null; // 복구
-                        
-                        // 적어도 활로가 있는 곳에 둠
+                        board[y][x] = null;
                         if(liberties > 0) validMoves.push({y, x});
                     }
                 }
             }
             if(validMoves.length > 0) {
-                // 중앙 근처를 선호하도록 정렬
-                const center = Math.floor(size/2);
-                validMoves.sort((a,b) => {
-                    let d1 = Math.abs(a.y-center)+Math.abs(a.x-center);
-                    let d2 = Math.abs(b.y-center)+Math.abs(b.x-center);
-                    return d1 - d2 + (Math.random()*4 - 2); // 약간의 랜덤성
-                });
-                return validMoves[0]; 
+                return validMoves[Math.floor(Math.random() * validMoves.length)];
             }
             return null;
         }
 
-
-        // --- 기존 오목/바둑 규칙 로직 ---
+        // --- Rules ---
         function processOmok(y, x) {
             if (currentPlayer === 'black') {
                 const r33 = document.getElementById('rule33').checked;
@@ -454,7 +401,6 @@
             board[y][x] = currentPlayer;
             return true;
         }
-
         function checkForbidden(y, x, k) {
             board[y][x] = 'black';
             let cnt = 0;
@@ -468,7 +414,6 @@
             board[y][x] = null;
             return cnt >= 2;
         }
-
         function checkOmokWin(y, x) {
             const c = board[y][x];
             const dirs = [[0,1],[1,0],[1,1],[1,-1]];
@@ -480,17 +425,15 @@
             }
             return false;
         }
-
         function processGo(y, x) {
             if (koPos && koPos.y === y && koPos.x === x) {
-                if(playMode === 'hvh') alert("패(Ko)입니다.");
+                if(playMode === 'hvh') alert("패(Ko)");
                 return false;
             }
             const opponent = (currentPlayer === 'black') ? 'white' : 'black';
             board[y][x] = currentPlayer;
             let capturedStones = [];
-            const neighbors = [[0,1],[0,-1],[1,0],[-1,0]];
-            neighbors.forEach(([dy, dx]) => {
+            [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dy, dx]) => {
                 const ny=y+dy, nx=x+dx;
                 if(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx]===opponent) {
                     const group = getGroup(ny, nx, opponent);
@@ -500,19 +443,15 @@
             const myGroup = getGroup(y, x, currentPlayer);
             if(capturedStones.length === 0 && getLiberties(myGroup) === 0) {
                 board[y][x] = null;
-                if(playMode === 'hvh') alert("착수 금지(자살수)");
+                if(playMode === 'hvh') alert("자살수 금지");
                 return false;
             }
             capturedStones.forEach(p => board[p.y][p.x] = null);
             captured[currentPlayer] += capturedStones.length;
-            if (capturedStones.length === 1 && myGroup.length === 1 && getLiberties(myGroup) === 1) {
-                koPos = capturedStones[0];
-            } else {
-                koPos = null;
-            }
+            if (capturedStones.length === 1 && myGroup.length === 1 && getLiberties(myGroup) === 1) koPos = capturedStones[0];
+            else koPos = null;
             return true;
         }
-
         function getGroup(y, x, color) {
             let g = [], visited = new Set(), stack = [{y, x}];
             visited.add(`${y},${x}`);
@@ -527,7 +466,6 @@
             }
             return g;
         }
-
         function getLiberties(group) {
             let lib = new Set();
             group.forEach(p => {
@@ -541,9 +479,7 @@
 
         function undoMove() {
             if(historyStack.length === 0) return;
-            // AI 모드일 경우 두 번 무르기 (내 것 + AI 것)
             let steps = (playMode === 'hva' && historyStack.length >= 2) ? 2 : 1;
-            
             for(let i=0; i<steps; i++) {
                 const prev = historyStack.pop();
                 board = prev.board;
@@ -557,24 +493,51 @@
             updateUI();
         }
 
+        // --- Rendering Optimization (Flicker Fix) ---
         function renderBoard(lastY = -1, lastX = -1) {
             for(let y=0; y<size; y++) {
                 for(let x=0; x<size; x++) {
                     const cell = document.getElementById(`cell-${y}-${x}`);
-                    cell.innerHTML = '';
-                    if(board[y][x]) {
-                        const s = document.createElement('div');
-                        s.className = `stone ${board[y][x]}`;
-                        if(y===lastY && x===lastX) s.classList.add('last');
-                        cell.appendChild(s);
+                    const stoneVal = board[y][x];
+                    
+                    // DOM 상태와 JS 상태 비교 (최적화: 변경된 것만 갱신)
+                    const existingStone = cell.querySelector('.stone');
+                    
+                    if (stoneVal) {
+                        // 돌이 있어야 하는데...
+                        if (!existingStone) {
+                            // 없으면 새로 만듦
+                            addStoneToCell(cell, stoneVal, y===lastY && x===lastX);
+                        } else {
+                            // 있는데 색이 다르거나 last 마커가 다르면 교체
+                            const isBlack = existingStone.classList.contains('black');
+                            const shouldBeBlack = (stoneVal === 'black');
+                            const isLast = existingStone.classList.contains('last');
+                            const shouldBeLast = (y===lastY && x===lastX);
+
+                            if (isBlack !== shouldBeBlack || isLast !== shouldBeLast) {
+                                cell.innerHTML = '';
+                                addStoneToCell(cell, stoneVal, shouldBeLast);
+                            }
+                        }
+                    } else {
+                        // 돌이 없어야 하는데 있으면 삭제
+                        if (existingStone) cell.innerHTML = '';
                     }
                 }
             }
         }
 
+        function addStoneToCell(cell, color, isLast) {
+            const s = document.createElement('div');
+            s.className = `stone ${color}`;
+            if (isLast) s.classList.add('last');
+            cell.appendChild(s);
+        }
+
         function updateUI() {
             playModeSelect.value = playMode;
-            playMode = playModeSelect.value; // Sync var
+            playMode = playModeSelect.value;
             turnText.innerText = `${currentPlayer === 'black' ? '흑돌' : '백돌'} 차례`;
             document.getElementById('cap-black').innerText = captured.white;
             const komi = parseFloat(komiInput.value) || 0;
