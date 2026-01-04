@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Clean Omok & Baduk (+Komi)</title>
+    <title>AI Omok & Baduk</title>
     <style>
         :root {
             --bg-color: #e0e5ec;
@@ -34,50 +34,58 @@
             touch-action: manipulation;
         }
 
-        /* --- 1. 상단 툴바 --- */
+        /* --- 상단 툴바 --- */
         .toolbar {
-            width: 92%; max-width: 450px;
+            width: 95%; max-width: 500px;
             padding: 10px 15px;
             border-radius: 50px;
             background: var(--bg-color);
             box-shadow: var(--shadow-light), var(--shadow-dark);
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px;
+            display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+            gap: 10px; margin-bottom: 20px;
         }
 
         .mode-switch {
             background: var(--bg-color);
             box-shadow: var(--inner-shadow);
-            border-radius: 30px;
-            padding: 4px;
-            display: flex;
+            border-radius: 30px; padding: 4px; display: flex;
         }
         
         .mode-btn {
             border: none; background: transparent;
-            padding: 8px 20px; border-radius: 25px;
-            font-weight: bold; color: #888; cursor: pointer;
-            transition: 0.3s;
+            padding: 8px 15px; border-radius: 25px;
+            font-weight: bold; color: #888; cursor: pointer; transition: 0.3s;
+            font-size: 0.85rem;
         }
         .mode-btn.active {
             background: var(--accent-brown); color: white;
             box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
         }
 
-        .action-group { display: flex; gap: 10px; }
+        /* AI 스위치 (새로 추가됨) */
+        .ai-switch {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 0.85rem; font-weight: bold;
+            background: var(--bg-color); padding: 5px 10px; border-radius: 20px;
+            box-shadow: 3px 3px 6px rgba(163, 177, 198, 0.4), -3px -3px 6px rgba(255,255,255, 0.8);
+        }
+        .ai-switch select {
+            border: none; background: transparent; font-weight: bold; color: #333; outline: none;
+        }
+
+        .action-group { display: flex; gap: 8px; }
         
         .action-btn {
-            border: none; padding: 8px 18px; border-radius: 12px;
-            font-weight: bold; font-size: 0.9rem; cursor: pointer;
+            border: none; padding: 8px 12px; border-radius: 12px;
+            font-weight: bold; font-size: 0.85rem; cursor: pointer;
             box-shadow: 3px 3px 6px rgba(163, 177, 198, 0.4), -3px -3px 6px rgba(255,255,255, 0.8);
-            transition: 0.2s; display: flex; align-items: center; gap: 5px;
+            display: flex; align-items: center; gap: 3px;
         }
         .action-btn:active { box-shadow: var(--inner-shadow); transform: scale(0.95); }
-        
         .btn-undo { background: var(--accent-orange); color: #d84315; }
         .btn-reset { background: var(--bg-color); color: #1565c0; }
 
-        /* --- 2. 상태 표시줄 --- */
+        /* --- 상태 표시줄 --- */
         .status-bar {
             display: flex; gap: 15px; align-items: center;
             margin-bottom: 20px; font-weight: bold; font-size: 1.1rem;
@@ -91,78 +99,59 @@
             box-shadow: 2px 2px 5px rgba(163, 177, 198, 0.3), -2px -2px 5px rgba(255,255,255,0.8);
         }
         .checkbox-label input { margin-right: 5px; accent-color: var(--accent-brown); }
-
-        /* 덤 입력 필드 스타일 추가 */
         .komi-input {
-            width: 50px;
-            border: none;
-            background: var(--bg-color);
-            box-shadow: var(--inner-shadow);
-            border-radius: 5px;
-            padding: 3px;
-            text-align: center;
-            font-weight: bold;
-            color: #555;
-            margin-left: 5px;
+            width: 45px; border: none; background: var(--bg-color);
+            box-shadow: var(--inner-shadow); border-radius: 5px;
+            padding: 3px; text-align: center; font-weight: bold; color: #555; margin-left: 5px;
         }
 
-        /* --- 3. 바둑판 --- */
+        /* --- 바둑판 --- */
         .board-container {
-            padding: 15px;
-            border-radius: 20px;
+            padding: 15px; border-radius: 20px;
             background: var(--bg-color);
             box-shadow: var(--shadow-light), var(--shadow-dark);
         }
-
         .go-board {
-            position: relative;
-            background-color: var(--board-bg);
-            padding: calc(var(--grid-size) / 2);
-            border-radius: 4px;
+            position: relative; background-color: var(--board-bg);
+            padding: calc(var(--grid-size) / 2); border-radius: 4px;
             box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
         }
-
         #grid-layer {
             display: grid;
             grid-template-columns: repeat(18, var(--grid-size));
             grid-template-rows: repeat(18, var(--grid-size));
         }
-        
         .grid-cell {
             width: var(--grid-size); height: var(--grid-size);
             border: 0.5px solid rgba(0,0,0,0.5); box-sizing: border-box;
         }
-
         .star-point {
             position: absolute; width: 6px; height: 6px; background: #000;
             border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;
         }
-
         #stone-layer {
             position: absolute; top: 0; left: 0;
             display: grid;
             grid-template-columns: repeat(19, var(--grid-size));
             grid-template-rows: repeat(19, var(--grid-size));
         }
-        
         .intersection {
             width: var(--grid-size); height: var(--grid-size);
             display: flex; justify-content: center; align-items: center; z-index: 10;
         }
-
         .stone {
             width: 90%; height: 90%; border-radius: 50%; position: relative;
             box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
         }
         .black { background: radial-gradient(circle at 30% 30%, #555, #000); }
         .white { background: radial-gradient(circle at 30% 30%, #fff, #ddd); }
-
         .stone.last::after {
             content: ''; position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%); width: 30%; height: 30%;
-            background: rgba(231, 76, 60, 0.9); border-radius: 50%;
-            border: 1px solid white;
+            background: rgba(231, 76, 60, 0.9); border-radius: 50%; border: 1px solid white;
         }
+        /* AI 생각중 로딩 표시 */
+        .thinking { cursor: wait; opacity: 0.7; }
 
     </style>
 </head>
@@ -170,13 +159,20 @@
 
     <div class="toolbar">
         <div class="mode-switch">
-            <button id="btn-omok" class="mode-btn active" onclick="setMode('omok')">오목</button>
-            <button id="btn-go" class="mode-btn" onclick="setMode('go')">바둑</button>
+            <button id="btn-omok" class="mode-btn active" onclick="setGameMode('omok')">오목</button>
+            <button id="btn-go" class="mode-btn" onclick="setGameMode('go')">바둑</button>
+        </div>
+
+        <div class="ai-switch">
+            🤖 <select id="play-mode" onchange="resetGame()">
+                <option value="hvh">사람 vs 사람</option>
+                <option value="hva">사람 vs AI</option>
+            </select>
         </div>
         
         <div class="action-group">
             <button class="action-btn btn-undo" onclick="undoMove()">⏪ 무르기</button>
-            <button class="action-btn btn-reset" onclick="resetGame()">🔄 다시두기</button>
+            <button class="action-btn btn-reset" onclick="resetGame()">🔄 비우기</button>
         </div>
     </div>
 
@@ -184,8 +180,8 @@
         <span id="turn-text">흑돌 차례</span>
         
         <div id="omok-controls" class="omok-rules">
-            <label class="checkbox-label"><input type="checkbox" id="rule33" checked>흑3-3금지</label>
-            <label class="checkbox-label"><input type="checkbox" id="rule44" checked>흑4-4금지</label>
+            <label class="checkbox-label"><input type="checkbox" id="rule33" checked>흑33禁</label>
+            <label class="checkbox-label"><input type="checkbox" id="rule44" checked>흑44禁</label>
         </div>
         
         <div id="go-score" class="omok-rules" style="display:none; font-size: 0.9rem; color: #444; align-items: center;">
@@ -193,13 +189,13 @@
             <span style="color:#ccc">|</span>
             <span>백집: <span id="cap-white" style="font-weight:bold">6.5</span></span>
             <span style="font-size:0.8rem; margin-left:5px;">
-                (덤: <input type="number" id="komi-val" class="komi-input" value="6.5" step="0.5" onchange="updateUI()">)
+                (덤:<input type="number" id="komi-val" class="komi-input" value="6.5" step="0.5" onchange="updateUI()">)
             </span>
         </div>
     </div>
 
     <div class="board-container">
-        <div class="go-board">
+        <div class="go-board" id="board-area">
             <div id="grid-layer"></div>
             <div id="stone-layer"></div>
         </div>
@@ -209,21 +205,24 @@
         const size = 19;
         let board = [];
         let currentPlayer = 'black';
-        let gameMode = 'omok';
+        let gameMode = 'omok'; // 'omok' or 'go'
+        let playMode = 'hvh'; // 'hvh' or 'hva'
         let historyStack = [];
-        let captured = { black: 0, white: 0 }; // [내 색깔]이 따낸 돌 수
+        let captured = { black: 0, white: 0 };
         let isGameOver = false;
         let koPos = null;
+        let isAiThinking = false;
 
         const gridLayer = document.getElementById('grid-layer');
         const stoneLayer = document.getElementById('stone-layer');
         const turnText = document.getElementById('turn-text');
-        const komiInput = document.getElementById('komi-val'); // 덤 입력 요소
+        const komiInput = document.getElementById('komi-val');
+        const playModeSelect = document.getElementById('play-mode');
+        const boardArea = document.getElementById('board-area');
 
         function init() {
             gridLayer.innerHTML = '';
             stoneLayer.innerHTML = '';
-
             for (let i = 0; i < 18 * 18; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'grid-cell';
@@ -237,7 +236,6 @@
                 star.style.left = `calc(${x} * var(--grid-size) + var(--grid-size)/2)`;
                 gridLayer.appendChild(star);
             }));
-
             for (let y = 0; y < size; y++) {
                 for (let x = 0; x < size; x++) {
                     const inter = document.createElement('div');
@@ -257,26 +255,43 @@
             currentPlayer = 'black';
             isGameOver = false;
             koPos = null;
+            isAiThinking = false;
+            boardArea.classList.remove('thinking');
             renderBoard();
             updateUI();
         }
 
-        function setMode(mode) {
-            if(historyStack.length > 0 && !confirm("모드 변경 시 게임이 초기화됩니다. 진행하시겠습니까?")) return;
+        function setGameMode(mode) {
+            if(historyStack.length > 0 && !confirm("모드 변경 시 게임이 초기화됩니다.")) return;
             gameMode = mode;
-            
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`btn-${mode}`).classList.add('active');
-            
             document.getElementById('omok-controls').style.display = (mode === 'omok') ? 'flex' : 'none';
             document.getElementById('go-score').style.display = (mode === 'go') ? 'flex' : 'none';
-            
             resetGame();
         }
 
+        // 통합 착수 핸들러
         function handleMove(y, x) {
-            if (isGameOver || board[y][x]) return;
+            if (isGameOver || board[y][x] || isAiThinking) return;
 
+            // 사람의 착수
+            if (!executeMove(y, x)) return;
+
+            // AI 턴 처리
+            if (!isGameOver && playMode === 'hva' && currentPlayer === 'white') {
+                isAiThinking = true;
+                boardArea.classList.add('thinking');
+                setTimeout(() => {
+                    aiMove();
+                    isAiThinking = false;
+                    boardArea.classList.remove('thinking');
+                }, 500); // 0.5초 딜레이로 생각하는 척 연출
+            }
+        }
+
+        // 실제 돌을 놓는 로직
+        function executeMove(y, x) {
             const snapshot = {
                 board: JSON.parse(JSON.stringify(board)),
                 currentPlayer,
@@ -296,20 +311,145 @@
                 if (gameMode === 'omok' && checkOmokWin(y, x)) {
                     setTimeout(() => alert(`${currentPlayer==='black'?'흑':'백'} 승리!`), 20);
                     isGameOver = true;
-                    return;
+                    return true;
                 }
                 
                 currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
                 updateUI();
+                return true;
+            }
+            return false;
+        }
+
+        // --- AI Logic (Heuristic) ---
+        function aiMove() {
+            if (isGameOver) return;
+            
+            let bestMove = null;
+            
+            // 바둑 AI (단순 랜덤/활로 기반 - 매우 약함)
+            if (gameMode === 'go') {
+                bestMove = getBasicGoMove();
+            } 
+            // 오목 AI (패턴 매칭 - 꽤 쓸만함)
+            else {
+                bestMove = getOmokBestMove();
+            }
+
+            if (bestMove) {
+                executeMove(bestMove.y, bestMove.x);
+            } else {
+                alert("AI가 둘 곳이 없습니다. 무승부?");
             }
         }
 
+        function getOmokBestMove() {
+            let maxScore = -Infinity;
+            let moves = [];
+            const center = Math.floor(size / 2);
+
+            for(let y=0; y<size; y++) {
+                for(let x=0; x<size; x++) {
+                    if(!board[y][x]) {
+                        // AI는 백돌(white), 플레이어는 흑돌(black)
+                        // 공격 점수 (내 돌 연결)
+                        const attackScore = evaluatePos(y, x, 'white');
+                        // 방어 점수 (상대 돌 막기 - 가중치 높음)
+                        const defenseScore = evaluatePos(y, x, 'black');
+                        
+                        // 중앙 가중치 (초반에 중앙 선호)
+                        const dist = Math.abs(y - center) + Math.abs(x - center);
+                        const centerBonus = (size - dist); 
+
+                        // 총점 = 공격 + 방어 + 위치점수
+                        // 방어가 중요하므로 defenseScore에 약간 가중치
+                        let totalScore = attackScore + (defenseScore * 1.1) + centerBonus;
+
+                        if (totalScore > maxScore) {
+                            maxScore = totalScore;
+                            moves = [{y, x}];
+                        } else if (totalScore === maxScore) {
+                            moves.push({y, x});
+                        }
+                    }
+                }
+            }
+            return moves.length > 0 ? moves[Math.floor(Math.random() * moves.length)] : null;
+        }
+
+        function evaluatePos(y, x, color) {
+            const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+            let score = 0;
+
+            dirs.forEach(([dy, dx]) => {
+                let count = 1; // 현재 위치 포함
+                let blocked = 0;
+                
+                // 정방향 탐색
+                let i=1; 
+                while(board[y+dy*i]?.[x+dx*i] === color) { count++; i++; }
+                if(board[y+dy*i]?.[x+dx*i] !== null) blocked++; // 벽이나 상대돌
+
+                // 역방향 탐색
+                let j=1; 
+                while(board[y-dy*j]?.[x-dx*j] === color) { count++; j++; }
+                if(board[y-dy*j]?.[x-dx*j] !== null) blocked++;
+
+                // 점수 부여 규칙
+                if (count >= 5) score += 100000; // 5목 (승리)
+                else if (count === 4) {
+                    if (blocked === 0) score += 10000; // 열린 4 (다음 턴 승리)
+                    else if (blocked === 1) score += 1000; // 닫힌 4
+                }
+                else if (count === 3) {
+                    if (blocked === 0) score += 500; // 열린 3
+                    else if (blocked === 1) score += 50;
+                }
+                else if (count === 2) {
+                    if (blocked === 0) score += 10;
+                }
+            });
+            return score;
+        }
+
+        function getBasicGoMove() {
+            // 바둑 AI는 너무 복잡하므로 랜덤으로 두되, 자살수는 피함
+            let validMoves = [];
+            for(let y=0; y<size; y++) {
+                for(let x=0; x<size; x++) {
+                    if(!board[y][x]) {
+                        // 가상으로 둬보고 자살수 체크 (약식)
+                        board[y][x] = 'white';
+                        let myGroup = getGroup(y, x, 'white');
+                        let liberties = getLiberties(myGroup);
+                        board[y][x] = null; // 복구
+                        
+                        // 적어도 활로가 있는 곳에 둠
+                        if(liberties > 0) validMoves.push({y, x});
+                    }
+                }
+            }
+            if(validMoves.length > 0) {
+                // 중앙 근처를 선호하도록 정렬
+                const center = Math.floor(size/2);
+                validMoves.sort((a,b) => {
+                    let d1 = Math.abs(a.y-center)+Math.abs(a.x-center);
+                    let d2 = Math.abs(b.y-center)+Math.abs(b.x-center);
+                    return d1 - d2 + (Math.random()*4 - 2); // 약간의 랜덤성
+                });
+                return validMoves[0]; 
+            }
+            return null;
+        }
+
+
+        // --- 기존 오목/바둑 규칙 로직 ---
         function processOmok(y, x) {
             if (currentPlayer === 'black') {
                 const r33 = document.getElementById('rule33').checked;
                 const r44 = document.getElementById('rule44').checked;
-                if (r33 && checkForbidden(y, x, 3)) { alert("3-3 금수입니다."); return false; }
-                if (r44 && checkForbidden(y, x, 4)) { alert("4-4 금수입니다."); return false; }
+                if (r33 && checkForbidden(y, x, 3)) { alert("3-3 금수!"); return false; }
+                if (r44 && checkForbidden(y, x, 4)) { alert("4-4 금수!"); return false; }
             }
             board[y][x] = currentPlayer;
             return true;
@@ -343,14 +483,13 @@
 
         function processGo(y, x) {
             if (koPos && koPos.y === y && koPos.x === x) {
-                alert("패(Ko)입니다. 다른 곳에 두세요."); return false;
+                if(playMode === 'hvh') alert("패(Ko)입니다.");
+                return false;
             }
-            
             const opponent = (currentPlayer === 'black') ? 'white' : 'black';
             board[y][x] = currentPlayer;
             let capturedStones = [];
             const neighbors = [[0,1],[0,-1],[1,0],[-1,0]];
-
             neighbors.forEach(([dy, dx]) => {
                 const ny=y+dy, nx=x+dx;
                 if(ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx]===opponent) {
@@ -358,17 +497,14 @@
                     if(getLiberties(group) === 0) capturedStones.push(...group);
                 }
             });
-
             const myGroup = getGroup(y, x, currentPlayer);
             if(capturedStones.length === 0 && getLiberties(myGroup) === 0) {
                 board[y][x] = null;
-                alert("착수 금지(자살수)입니다.");
+                if(playMode === 'hvh') alert("착수 금지(자살수)");
                 return false;
             }
-
             capturedStones.forEach(p => board[p.y][p.x] = null);
             captured[currentPlayer] += capturedStones.length;
-
             if (capturedStones.length === 1 && myGroup.length === 1 && getLiberties(myGroup) === 1) {
                 koPos = capturedStones[0];
             } else {
@@ -405,13 +541,17 @@
 
         function undoMove() {
             if(historyStack.length === 0) return;
-            const prev = historyStack.pop();
-            board = prev.board;
-            currentPlayer = prev.currentPlayer;
-            captured = prev.captured;
-            koPos = prev.koPos;
-            isGameOver = false;
+            // AI 모드일 경우 두 번 무르기 (내 것 + AI 것)
+            let steps = (playMode === 'hva' && historyStack.length >= 2) ? 2 : 1;
             
+            for(let i=0; i<steps; i++) {
+                const prev = historyStack.pop();
+                board = prev.board;
+                currentPlayer = prev.currentPlayer;
+                captured = prev.captured;
+                koPos = prev.koPos;
+            }
+            isGameOver = false;
             let lastMove = historyStack.length > 0 ? historyStack[historyStack.length-1].move : {y:-1, x:-1};
             renderBoard(lastMove.y, lastMove.x);
             updateUI();
@@ -432,21 +572,19 @@
             }
         }
 
-        // UI 업데이트: 덤 기능 로직 추가
         function updateUI() {
+            playModeSelect.value = playMode;
+            playMode = playModeSelect.value; // Sync var
             turnText.innerText = `${currentPlayer === 'black' ? '흑돌' : '백돌'} 차례`;
-            
-            // 흑집 = 백돌을 따낸 수
             document.getElementById('cap-black').innerText = captured.white;
-            
-            // 백집 = 흑돌을 따낸 수 + 덤(Komi)
             const komi = parseFloat(komiInput.value) || 0;
-            const whiteScore = captured.black + komi;
-            
-            document.getElementById('cap-white').innerText = whiteScore;
+            document.getElementById('cap-white').innerText = captured.black + komi;
         }
 
-        function resetGame() { resetData(); }
+        function resetGame() { 
+            playMode = playModeSelect.value;
+            resetData(); 
+        }
 
         function playSound() {
             try {
@@ -466,4 +604,3 @@
     </script>
 </body>
 </html>
-
