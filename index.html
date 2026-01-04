@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Omok Pro (9 Levels)</title>
+    <title>AI Omok Pro (No Jitter)</title>
     <style>
         :root {
             --bg-color: #e0e5ec;
@@ -33,18 +33,20 @@
             touch-action: manipulation;
         }
 
-        /* 툴바 스타일 */
+        /* --- 1. 메인 툴바 (고정된 UI) --- */
         .toolbar {
             width: 95%; max-width: 550px;
             padding: 10px 15px;
             border-radius: 25px;
             background: var(--bg-color);
             box-shadow: var(--shadow-light), var(--shadow-dark);
-            display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
-            gap: 10px; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 10px; margin-bottom: 10px; /* 아래 레벨바와 간격 */
+            position: relative;
+            z-index: 20;
         }
 
-        /* 왼쪽: 모드 스위치 */
+        /* 왼쪽: 오목/바둑 모드 */
         .mode-switch {
             background: var(--bg-color);
             box-shadow: var(--inner-shadow);
@@ -61,14 +63,11 @@
             box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
         }
 
-        /* 중앙: AI 설정 (Select Box) */
-        .ai-controls {
-            display: flex; align-items: center; gap: 8px;
-        }
+        /* 중앙: 대전 모드 선택 (사람 vs AI) */
         .select-box {
             border: none; background: var(--bg-color);
             box-shadow: 3px 3px 6px rgba(163, 177, 198, 0.4), -3px -3px 6px rgba(255,255,255, 0.8);
-            border-radius: 12px; padding: 5px 10px;
+            border-radius: 12px; padding: 6px 12px;
             font-size: 0.85rem; font-weight: bold; color: #333; outline: none; cursor: pointer;
         }
 
@@ -84,10 +83,36 @@
         .btn-undo { background: var(--accent-orange); color: #d84315; }
         .btn-reset { background: var(--bg-color); color: #1565c0; }
 
-        /* 상태 표시줄 */
+
+        /* --- 2. AI 레벨 바 (별도 행으로 분리하여 흔들림 방지) --- */
+        .level-row {
+            width: 90%; max-width: 500px;
+            height: 0; /* 평소에는 숨김 */
+            overflow: hidden;
+            transition: height 0.3s ease, margin 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .level-row.visible {
+            height: 50px; /* 활성화 시 높이 확보 */
+            margin-bottom: 10px;
+            opacity: 1;
+        }
+
+        .level-container {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--bg-color);
+            padding: 5px 20px;
+            border-radius: 20px;
+            box-shadow: var(--inner-shadow);
+            font-size: 0.9rem; font-weight: bold; color: #555;
+        }
+
+
+        /* --- 3. 상태 표시줄 --- */
         .status-bar {
             display: flex; gap: 15px; align-items: center;
-            margin-bottom: 20px; font-weight: bold; font-size: 1.1rem;
+            margin-bottom: 15px; font-weight: bold; font-size: 1.1rem;
             flex-wrap: wrap; justify-content: center;
         }
         .omok-rules { display: flex; gap: 10px; font-size: 0.9rem; align-items: center; }
@@ -102,7 +127,7 @@
             padding: 3px; text-align: center; font-weight: bold; color: #555; margin-left: 5px;
         }
 
-        /* 바둑판 */
+        /* --- 4. 바둑판 --- */
         .board-container {
             padding: 15px; border-radius: 20px;
             background: var(--bg-color);
@@ -151,7 +176,6 @@
             background: rgba(231, 76, 60, 0.9); border-radius: 50%; border: 1px solid white;
         }
 
-        /* AI 생각중: 깜빡임 없이 클릭만 막음 */
         .thinking { pointer-events: none; cursor: wait; }
 
     </style>
@@ -164,13 +188,23 @@
             <button id="btn-go" class="mode-btn" onclick="setGameMode('go')">바둑</button>
         </div>
 
-        <div class="ai-controls">
+        <div>
             <select id="play-mode" class="select-box" onchange="resetGame()">
                 <option value="hvh">사람 vs 사람</option>
                 <option value="hva">사람 vs AI</option>
             </select>
-            
-            <select id="ai-level" class="select-box" style="display:none;">
+        </div>
+        
+        <div class="action-group">
+            <button class="action-btn btn-undo" onclick="undoMove()">⏪ 무르기</button>
+            <button class="action-btn btn-reset" onclick="resetGame()">🔄 비우기</button>
+        </div>
+    </div>
+
+    <div id="ai-level-row" class="level-row">
+        <div class="level-container">
+            <span>🔥 AI 레벨:</span>
+            <select id="ai-level" class="select-box" style="background: transparent; box-shadow: none; padding: 0;">
                 <option value="1">Lv.1 (입문)</option>
                 <option value="2">Lv.2 (초보)</option>
                 <option value="3">Lv.3 (하수)</option>
@@ -181,11 +215,6 @@
                 <option value="8">Lv.8 (초고수)</option>
                 <option value="9" selected>Lv.9 (신)</option>
             </select>
-        </div>
-        
-        <div class="action-group">
-            <button class="action-btn btn-undo" onclick="undoMove()">⏪ 무르기</button>
-            <button class="action-btn btn-reset" onclick="resetGame()">🔄 비우기</button>
         </div>
     </div>
 
@@ -232,6 +261,7 @@
         const komiInput = document.getElementById('komi-val');
         const playModeSelect = document.getElementById('play-mode');
         const aiLevelSelect = document.getElementById('ai-level');
+        const aiLevelRow = document.getElementById('ai-level-row');
         const boardArea = document.getElementById('board-area');
 
         function init() {
@@ -332,7 +362,6 @@
             return false;
         }
 
-        // --- 9단계 AI Logic ---
         function aiMove() {
             if (isGameOver) return;
             const level = parseInt(aiLevelSelect.value);
@@ -346,34 +375,27 @@
             let moves = [];
             const center = Math.floor(size / 2);
             
-            // 레벨별 파라미터 설정 (실수 확률, 방어 가중치, 공격 가중치)
-            let errorRate = 0; // 0 ~ 1 (높을수록 랜덤)
+            let errorRate = 0; 
             let defenseWeight = 1.0; 
             
             if (level <= 3) { errorRate = 0.6; defenseWeight = 0.5; }
             else if (level <= 6) { errorRate = 0.2; defenseWeight = 0.9; }
-            else { errorRate = 0.0; defenseWeight = 1.5; } // 고수는 방어 중시
+            else { errorRate = 0.0; defenseWeight = 1.5; } 
 
             for(let y=0; y<size; y++) {
                 for(let x=0; x<size; x++) {
                     if(!board[y][x]) {
-                        // AI(White) 공격 점수
                         let attackScore = evaluatePos(y, x, 'white');
-                        // Player(Black) 방어 점수
                         let defenseScore = evaluatePos(y, x, 'black');
                         
-                        // 레벨 9는 3-3, 4-4 등 절대 방어
                         if (level >= 8 && defenseScore >= 5000) defenseScore *= 2.0;
 
-                        // 위치 점수 (중앙 선호)
                         const dist = Math.abs(y - center) + Math.abs(x - center);
                         const centerBonus = (size - dist); 
 
-                        // 총점 계산 (노이즈 추가로 난이도 조절)
                         let noise = Math.random() * (1000 * errorRate);
                         let totalScore = attackScore + (defenseScore * defenseWeight) + centerBonus + noise;
 
-                        // 낮은 레벨은 높은 점수 자리를 가끔 무시하게 만듦
                         if (level <= 3 && Math.random() < 0.3) totalScore = 0;
 
                         if (totalScore > maxScore) {
@@ -398,7 +420,6 @@
                 let j=1; while(board[y-dy*j]?.[x-dx*j] === color) { count++; j++; }
                 if(board[y-dy*j]?.[x-dx*j] !== null) blocked++;
 
-                // 점수 체계
                 if (count >= 5) score += 200000;
                 else if (count === 4) score += (blocked === 0) ? 50000 : 2500;
                 else if (count === 3) score += (blocked === 0) ? 3000 : 200;
@@ -564,8 +585,13 @@
         function updateUI() {
             playModeSelect.value = playMode;
             playMode = playModeSelect.value;
-            // AI 레벨 선택창 표시 여부
-            aiLevelSelect.style.display = (playMode === 'hva') ? 'block' : 'none';
+            
+            // AI 레벨 바 표시/숨김 (슬라이딩 효과)
+            if (playMode === 'hva') {
+                aiLevelRow.classList.add('visible');
+            } else {
+                aiLevelRow.classList.remove('visible');
+            }
             
             turnText.innerText = `${currentPlayer === 'black' ? '흑돌' : '백돌'} 차례`;
             document.getElementById('cap-black').innerText = captured.white;
